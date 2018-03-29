@@ -1,0 +1,506 @@
+---
+title: "Untitled"
+author: "First Last"
+date: YYYY-MM-DD
+output: html_document
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+
+# Introduction
+
+The following RMarkdown file uses files from Donors Choose and performs preliminary sentiment analysis. The sentiment analysis was aided by the code and explanations provided in  https://www.tidytextmining.com/. 
+
+# Get Started
+
+```{r}
+# Libraries
+
+library(dplyr)
+library(stringr)
+library(tidytext)
+library(ggplot2)
+library(tidyverse)
+library(cowplot)
+
+# Open the datasets
+
+train <- read.csv("~/Dropbox/DonorsChoose/train.csv")
+test <- read.csv("~/Dropbox/DonorsChoose/test.csv")
+resources <- read.csv("~/Dropbox/DonorsChoose/resources.csv")
+
+```
+
+# Data exploration on the title
+
+## Make data into a tibble and find out how many words are in the title
+
+```{r}
+# First, we want to select project id, title name, and if the project was approved or not
+
+id_title <- c(1, 16, 9)
+
+train_text <- train[,id_title]
+train_text[,1] <- as.character(train_text[,1])
+train_text[,2] <- as.numeric(train_text[,2])
+train_text[,3] <- as.character(train_text[,3])
+
+train_text <- as.tibble(train_text)
+
+tidy_books <- train_text %>% unnest_tokens(word, project_title)
+
+# Find out how many words the title is
+
+freq_table <- count(tidy_books, id) 
+
+title_word_count_by_project <- left_join(freq_table, train_text[,1:2], by = c("id"))
+
+ggplot(title_word_count_by_project, aes(x = factor(project_is_approved), y = n)) + geom_boxplot()
+
+ggplot(title_word_count_by_project, aes(x = n, fill = factor(project_is_approved))) + 
+    geom_bar(position = "fill")
+```
+
+## Take out common words ("stop words")
+
+```{r}
+# Take out stop (common) words
+
+tidy_books <- tidy_books %>%
+  anti_join(stop_words)
+
+freq_table <- count(tidy_books, id) 
+
+title_word_count_by_project <- left_join(freq_table, train_text[,1:2], by = c("id"))
+
+ggplot(title_word_count_by_project, aes(x = factor(project_is_approved), y = n)) + geom_boxplot()
+
+title_n <- ggplot(title_word_count_by_project, aes(x = n, fill = factor(project_is_approved))) + 
+    geom_bar(position = "fill") + ggtitle("Number of words by approval status")
+
+# Get a sense of which words are the most common
+
+tidy_books %>%
+  count(word, sort = TRUE) 
+
+
+tidy_books %>%
+  count(word, sort = TRUE) %>%
+  filter(n > 2000) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n)) +
+  geom_col() +
+  xlab(NULL) +
+  coord_flip()
+
+```
+
+## Sentiment analysis
+
+### AFINN
+
+```{r}
+janeaustensentiment <- tidy_books %>% inner_join(get_sentiments("afinn"))
+
+summary(janeaustensentiment)
+
+janeaustensentiment[1:10,]
+
+# Is there a correlation between the average score and whether or not it gets accepted?
+
+check_corr_titles <- aggregate(janeaustensentiment$score, by = list(janeaustensentiment$id), FUN = mean)
+colnames(check_corr_titles) <- c("id", "score")
+
+check_corr_titles2 <- left_join(check_corr_titles, train_text[,1:2], by = c("id"))
+
+
+ggplot(check_corr_titles2, aes(x = factor(project_is_approved), y = score)) + geom_boxplot()
+
+title_a <- ggplot(check_corr_titles2,aes(x = score, fill = factor(project_is_approved))) + 
+    geom_bar(position = "fill") + ggtitle("Avg. AFINN sentiment score by approval status")
+
+# Is there a relationship between the most positive word and whether it gets approved?
+
+check_corr_titles <- aggregate(janeaustensentiment$score, by = list(janeaustensentiment$id), FUN = max)
+colnames(check_corr_titles) <- c("id", "score")
+
+check_corr_titles2 <- left_join(check_corr_titles, train_text[,1:2], by = c("id"))
+
+
+ggplot(check_corr_titles2, aes(x = factor(project_is_approved), y = score)) + geom_boxplot()
+
+title_b <- ggplot(check_corr_titles2,aes(x = score, fill = factor(project_is_approved))) + 
+    geom_bar(position = "fill") + ggtitle("Max. AFINN sentiment score by approval status")
+
+# Is there a relationship between the most negative word and whether it gets approved?
+
+check_corr_titles <- aggregate(janeaustensentiment$score, by = list(janeaustensentiment$id), FUN = min)
+colnames(check_corr_titles) <- c("id", "score")
+
+check_corr_titles2 <- left_join(check_corr_titles, train_text[,1:2], by = c("id"))
+
+
+ggplot(check_corr_titles2, aes(x = factor(project_is_approved), y = score)) + geom_boxplot()
+
+title_c <- ggplot(check_corr_titles2,aes(x = score, fill = factor(project_is_approved))) + 
+    geom_bar(position = "fill") + ggtitle("Min. AFINN sentiment score by approval status")
+
+# Is there a relationship between the most common value and whether it gets approved?
+
+check_corr_titles <- aggregate(janeaustensentiment$score, by = list(janeaustensentiment$id), FUN = median)
+colnames(check_corr_titles) <- c("id", "score")
+
+check_corr_titles2 <- left_join(check_corr_titles, train_text[,1:2], by = c("id"))
+
+
+ggplot(check_corr_titles2, aes(x = factor(project_is_approved), y = score)) + geom_boxplot()
+
+title_d <- ggplot(check_corr_titles2,aes(x = score, fill = factor(project_is_approved))) + 
+    geom_bar(position = "fill") + ggtitle("Median AFINN sentiment score by approval status")
+
+```
+
+
+### BING
+
+```{r}
+# Sentiment analysis - bing
+
+janeaustensentiment <- tidy_books %>% inner_join(get_sentiments("bing"))
+
+janeaustensentiment[1:10,]
+
+# Is there a connection between the average score and whether or not it gets accepted?
+
+length(which(janeaustensentiment$project_is_approved == 1 & janeaustensentiment$sentiment == "positive"))
+length(which(janeaustensentiment$project_is_approved == 0 & janeaustensentiment$sentiment == "positive"))
+
+length(which(janeaustensentiment$project_is_approved == 1 & janeaustensentiment$sentiment == "negative"))
+length(which(janeaustensentiment$project_is_approved == 0 & janeaustensentiment$sentiment == "negative"))
+
+
+bingnegative <- get_sentiments("bing") %>% 
+  filter(sentiment == "negative")
+
+wordcounts <- tidy_books %>%
+  group_by(id) %>%
+  summarize(words = n())
+
+sentiment_ratio <- tidy_books %>%
+  semi_join(bingnegative) %>%
+  group_by(id, project_is_approved) %>%
+  summarize(negativewords = n()) %>%
+  left_join(wordcounts, by = c("id")) %>%
+  mutate(ratio = negativewords/words) %>%
+  top_n(1) %>%
+  ungroup()
+
+ggplot(sentiment_ratio, aes(x = factor(project_is_approved), y = ratio)) + geom_boxplot()
+
+
+```
+
+### NRC
+
+```{r}
+janeaustensentiment <- tidy_books %>% inner_join(get_sentiments("nrc"))
+
+janeaustensentiment[1:20,]
+
+```
+
+# Data exploration on essay 1
+
+## Make data into a tibble and find out how many words are in essay 1
+
+```{r}
+# First, we want to select project id, title name, and if the project was approved or not
+
+id_title <- c(1, 16, 10)
+
+train_text <- train[,id_title]
+train_text[,1] <- as.character(train_text[,1])
+train_text[,2] <- as.numeric(train_text[,2])
+train_text[,3] <- as.character(train_text[,3])
+
+train_text <- as.tibble(train_text)
+
+tidy_books <- train_text %>% unnest_tokens(word, project_essay_1)
+
+# Find how many words in essay1
+
+freq_table <- count(tidy_books, id) 
+
+title_word_count_by_project <- left_join(freq_table, train_text[,1:2], by = c("id"))
+
+ggplot(title_word_count_by_project, aes(x = factor(project_is_approved), y = n)) + geom_boxplot()
+
+ggplot(title_word_count_by_project, aes(x = n, fill = factor(project_is_approved))) + 
+    geom_bar(position = "fill")
+
+```
+
+## Take out common words ("stop words")
+
+```{r}
+# Take out stop (common) words
+
+tidy_books <- tidy_books %>%
+  anti_join(stop_words)
+
+freq_table <- count(tidy_books, id) 
+
+title_word_count_by_project <- left_join(freq_table, train_text[,1:2], by = c("id"))
+
+ggplot(title_word_count_by_project, aes(x = factor(project_is_approved), y = n)) + geom_boxplot()
+
+essay1_n <- ggplot(title_word_count_by_project, aes(x = n, fill = factor(project_is_approved))) + 
+    geom_bar(position = "fill")
+
+# Get a sense of which words are the most common
+
+tidy_books %>%
+  count(word, sort = TRUE) 
+
+
+tidy_books %>%
+  count(word, sort = TRUE) %>%
+  filter(n > 20000) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n)) +
+  geom_col() +
+  xlab(NULL) +
+  coord_flip()
+
+```
+
+## Sentiment analysis
+
+### AFINN
+
+```{r}
+janeaustensentiment <- tidy_books %>% inner_join(get_sentiments("afinn"))
+
+summary(janeaustensentiment)
+
+janeaustensentiment[1:10,]
+
+# Is there a relationship between the average score and whether or not it gets accepted?
+
+check_corr_titles <- aggregate(janeaustensentiment$score, by = list(janeaustensentiment$id), FUN = mean)
+colnames(check_corr_titles) <- c("id", "score")
+
+check_corr_titles2 <- left_join(check_corr_titles, train_text[,1:2], by = c("id"))
+
+ggplot(check_corr_titles2, aes(x = factor(project_is_approved), y = score)) + geom_boxplot()
+
+essay1_a <- ggplot(check_corr_titles2,aes(x = score, fill = factor(project_is_approved))) + 
+    geom_bar(position = "fill") 
+
+
+# Is there a relationship between the most positive word and whether it gets approved?
+
+check_corr_titles <- aggregate(janeaustensentiment$score, by = list(janeaustensentiment$id), FUN = max)
+colnames(check_corr_titles) <- c("id", "score")
+
+check_corr_titles2 <- left_join(check_corr_titles, train_text[,1:2], by = c("id"))
+
+
+ggplot(check_corr_titles2, aes(x = factor(project_is_approved), y = score)) + geom_boxplot()
+
+essay1_b <- ggplot(check_corr_titles2,aes(x = score, fill = factor(project_is_approved))) + 
+    geom_bar(position = "fill")
+
+# Is there a relationship between the most negative word and whether it gets approved?
+
+check_corr_titles <- aggregate(janeaustensentiment$score, by = list(janeaustensentiment$id), FUN = min)
+colnames(check_corr_titles) <- c("id", "score")
+
+check_corr_titles2 <- left_join(check_corr_titles, train_text[,1:2], by = c("id"))
+
+
+ggplot(check_corr_titles2, aes(x = factor(project_is_approved), y = score)) + geom_boxplot()
+
+essay1_c <- ggplot(check_corr_titles2,aes(x = score, fill = factor(project_is_approved))) + 
+    geom_bar(position = "fill")
+
+# Is there a relationship between the most common value and whether it gets approved?
+
+check_corr_titles <- aggregate(janeaustensentiment$score, by = list(janeaustensentiment$id), FUN = median)
+colnames(check_corr_titles) <- c("id", "score")
+
+check_corr_titles2 <- left_join(check_corr_titles, train_text[,1:2], by = c("id"))
+
+
+ggplot(check_corr_titles2, aes(x = factor(project_is_approved), y = score)) + geom_boxplot()
+
+essay1_d <- ggplot(check_corr_titles2,aes(x = score, fill = factor(project_is_approved))) + 
+    geom_bar(position = "fill")
+```
+
+
+# Data exploration on essay 2
+
+## Make data into a tibble and find out how many words are in essay 2
+
+```{r}
+# First, we want to select project id, essay 2, and if the project was approved or not
+
+id_title <- c(1, 16, 11)
+
+train_text <- train[,id_title]
+train_text[,1] <- as.character(train_text[,1])
+train_text[,2] <- as.numeric(train_text[,2])
+train_text[,3] <- as.character(train_text[,3])
+
+train_text <- as.tibble(train_text)
+
+tidy_books <- train_text %>% unnest_tokens(word, project_essay_2)
+
+# Find how many words in essay1
+
+freq_table <- count(tidy_books, id) 
+
+title_word_count_by_project <- left_join(freq_table, train_text[,1:2], by = c("id"))
+
+ggplot(title_word_count_by_project, aes(x = factor(project_is_approved), y = n)) + geom_boxplot()
+
+ggplot(title_word_count_by_project, aes(x = n, fill = factor(project_is_approved))) + 
+    geom_bar(position = "fill")
+```
+
+## Take out common words ("stop words")
+
+```{r}
+# Take out stop (common) words
+
+tidy_books <- tidy_books %>%
+  anti_join(stop_words)
+
+freq_table <- count(tidy_books, id) 
+
+title_word_count_by_project <- left_join(freq_table, train_text[,1:2], by = c("id"))
+
+ggplot(title_word_count_by_project, aes(x = factor(project_is_approved), y = n)) + geom_boxplot()
+
+essay2_n <- ggplot(title_word_count_by_project, aes(x = n, fill = factor(project_is_approved))) + 
+    geom_bar(position = "fill")
+
+# Get a sense of which words are the most common
+
+tidy_books %>%
+  count(word, sort = TRUE) 
+
+
+tidy_books %>%
+  count(word, sort = TRUE) %>%
+  filter(n > 20000) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n)) +
+  geom_col() +
+  xlab(NULL) +
+  coord_flip()
+
+```
+
+## Sentiment analysis
+
+### AFINN
+
+```{r}
+janeaustensentiment <- tidy_books %>% inner_join(get_sentiments("afinn"))
+
+summary(janeaustensentiment)
+
+janeaustensentiment[1:10,]
+
+# Is there a relationship between the average score and whether or not it gets accepted?
+
+check_corr_titles <- aggregate(janeaustensentiment$score, by = list(janeaustensentiment$id), FUN = mean)
+colnames(check_corr_titles) <- c("id", "score")
+
+check_corr_titles2 <- left_join(check_corr_titles, train_text[,1:2], by = c("id"))
+
+
+ggplot(check_corr_titles2, aes(x = factor(project_is_approved), y = score)) + geom_boxplot()
+
+essay2_a <- ggplot(check_corr_titles2,aes(x = score, fill = factor(project_is_approved))) + 
+    geom_bar(position = "fill")
+
+# Is there a relationship between the most positive word and whether it gets approved?
+
+check_corr_titles <- aggregate(janeaustensentiment$score, by = list(janeaustensentiment$id), FUN = max)
+colnames(check_corr_titles) <- c("id", "score")
+
+check_corr_titles2 <- left_join(check_corr_titles, train_text[,1:2], by = c("id"))
+
+
+ggplot(check_corr_titles2, aes(x = factor(project_is_approved), y = score)) + geom_boxplot()
+
+essay2_b <-ggplot(check_corr_titles2,aes(x = score, fill = factor(project_is_approved))) + 
+    geom_bar(position = "fill")
+
+# Is there a relationship between the most negative word and whether it gets approved?
+
+check_corr_titles <- aggregate(janeaustensentiment$score, by = list(janeaustensentiment$id), FUN = min)
+colnames(check_corr_titles) <- c("id", "score")
+
+check_corr_titles2 <- left_join(check_corr_titles, train_text[,1:2], by = c("id"))
+
+
+ggplot(check_corr_titles2, aes(x = factor(project_is_approved), y = score)) + geom_boxplot()
+
+essay2_c <-ggplot(check_corr_titles2,aes(x = score, fill = factor(project_is_approved))) + 
+    geom_bar(position = "fill")
+
+# Is there a relationship between the most common value and whether it gets approved?
+
+check_corr_titles <- aggregate(janeaustensentiment$score, by = list(janeaustensentiment$id), FUN = median)
+colnames(check_corr_titles) <- c("id", "score")
+
+check_corr_titles2 <- left_join(check_corr_titles, train_text[,1:2], by = c("id"))
+
+
+ggplot(check_corr_titles2, aes(x = factor(project_is_approved), y = score)) + geom_boxplot()
+
+essay2_d <- ggplot(check_corr_titles2,aes(x = score, fill = factor(project_is_approved))) + 
+    geom_bar(position = "fill")
+```
+
+# Summary Plots
+
+```{r}
+plot_grid(title_n, essay1_n, essay2_n, labels = c("A", "B", "C"), ncol = 1)
+plot_grid(title_a, essay1_a, essay2_a, labels = c("A", "B", "C"), ncol = 1)
+plot_grid(title_b, essay1_b, essay2_b, labels = c("A", "B", "C"), ncol = 1)
+plot_grid(title_c, essay1_c, essay2_c, labels = c("A", "B", "C"), ncol = 1)
+plot_grid(title_d, essay1_d, essay2_d, labels = c("A", "B", "C"), ncol = 1)
+```
+
+
+
+
+
+## Session information
+
+<!-- Insert the session information into the document -->
+```{r session-info}
+```
