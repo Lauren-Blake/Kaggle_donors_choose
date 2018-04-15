@@ -291,11 +291,11 @@ pred <- predict(bst, test_data)
 make_csv <- as.data.frame(cbind(testing_data$id, pred), stringsAsFactors = FALSE)
 colnames(make_csv) <- cbind("id", "project_is_approved")
 
-boxplot(as.numeric(make_csv$project_is_approved))
+boxplot(as.numeric(make_csv$project_is_approved), ylim = c(0,1), main = "Probability of approval for each project")
 
 order_id <- make_csv[order(match(make_csv$id, test$id)), ]
 
-
+write.csv(order_id, "../data/sample_submission.csv", row.names = FALSE, sep="\t")
 ```
 
 
