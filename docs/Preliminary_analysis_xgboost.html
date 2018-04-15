@@ -324,7 +324,7 @@ shared across the workflowr files. -->
 <p><strong>Last updated:</strong> 2018-04-15</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 921bc6c</p>
+<p><strong>Code version:</strong> 19370f1</p>
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
 <p>The goal of this script is to run XGBoost on a model.</p>
@@ -613,9 +613,13 @@ pred &lt;- predict(bst, test_data)
 make_csv &lt;- as.data.frame(cbind(testing_data$id, pred), stringsAsFactors = FALSE)
 colnames(make_csv) &lt;- cbind(&quot;id&quot;, &quot;project_is_approved&quot;)
 
-boxplot(as.numeric(make_csv$project_is_approved))</code></pre>
+boxplot(as.numeric(make_csv$project_is_approved), ylim = c(0,1), main = &quot;Probability of approval for each project&quot;)</code></pre>
 <p><img src="figure/Preliminary_analysis_xgboost.Rmd/unnamed-chunk-6-1.png" width="672" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>order_id &lt;- make_csv[order(match(make_csv$id, test$id)), ]</code></pre>
+<pre class="r"><code>order_id &lt;- make_csv[order(match(make_csv$id, test$id)), ]
+
+write.csv(order_id, &quot;../data/sample_submission.csv&quot;, row.names = FALSE, sep=&quot;\t&quot;)</code></pre>
+<pre><code>Warning in write.csv(order_id, &quot;../data/sample_submission.csv&quot;, row.names =
+FALSE, : attempt to set &#39;sep&#39; ignored</code></pre>
 <div id="session-information" class="section level2">
 <h2>Session information</h2>
 <!-- Insert the session information into the document -->
