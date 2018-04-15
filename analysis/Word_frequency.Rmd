@@ -1,0 +1,416 @@
+---
+title: "Word frequency analysis"
+author: "Lauren Blake"
+date: 2018-04-06
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+# Introduction
+
+Driving question: Are certain words more likely to be associated with "approved" applications and others with "non approved" words?
+
+The following RMarkdown file uses files from Donors Choose and performs preliminary analysis with Latent Dirichlet allocation. The sentiment analysis was aided by the code and explanations provided in chapter 6  https://www.tidytextmining.com/. 
+
+# Get Started
+
+```{r}
+# Libraries
+
+library(dplyr)
+library(stringr)
+library(tidytext)
+library(ggplot2)
+library(tidyverse)
+library("quanteda")
+library("plotly")
+
+# Open the datasets
+
+train <- read.csv("~/Dropbox/DonorsChoose/train.csv")
+test <- read.csv("~/Dropbox/DonorsChoose/test.csv")
+resources <- read.csv("~/Dropbox/DonorsChoose/resources.csv")
+
+```
+
+
+## Make data into a tibble and find out the most common words in approved versus non-approved essays
+
+```{r}
+# First, we want to select project id, essay 1, and if the project was approved or not
+
+id_title <- c(1, 16, 10)
+
+train_text <- train[,id_title]
+train_text[,1] <- as.character(train_text[,1])
+train_text[,2] <- as.numeric(train_text[,2])
+train_text[,3] <- as.character(train_text[,3])
+
+
+train_text <- as.tibble(train_text)
+
+tidy_books <- train_text %>% unnest_tokens(word, project_essay_1)
+
+# Take out stop (common) words
+
+tidy_books <- tidy_books %>%
+  anti_join(stop_words)
+
+word_counts <- tidy_books %>%
+  anti_join(stop_words) %>%
+  count(id, word, sort = TRUE) %>%
+  ungroup()
+
+
+# Convert dtm
+
+#chapters_dtm <- word_counts %>%
+#  cast_dtm(id, word, n)
+
+#chapters_dtm
+
+# We have two topics (approved and not approved); set a seed so that the output of the model is predictable
+#ap_lda <- LDA(chapters_dtm, k = 2, control = list(seed = 1234))
+
+#topics <- tidy(ap_lda, matrix = "beta")
+
+# Fnd the top words
+
+#top_terms <- topics %>%
+#  group_by(topic) %>%
+#  top_n(5, beta) %>%
+#  ungroup() %>%
+#  arrange(topic, -beta)
+
+#top_terms %>%
+#  mutate(term = reorder(term, beta)) %>%
+#  ggplot(aes(term, beta, fill = factor(topic))) +
+#  geom_col(show.legend = FALSE) +
+#  facet_wrap(~ topic, scales = "free") +
+#  coord_flip()
+# chapters_gamma <- tidy(ap_lda, matrix = "gamma")
+
+
+# Look at frequency of different words
+
+
+frequency <- tidy_books %>% 
+  group_by(project_is_approved) %>% 
+  count(word, sort = TRUE) %>% 
+  left_join(tidy_books %>% 
+              group_by(project_is_approved) %>% 
+              summarise(total = n())) %>%
+  mutate(freq = n/total)
+
+
+frequency <- frequency %>% 
+  select(project_is_approved, word, freq) %>%
+  spread(project_is_approved, freq)
+
+
+library(scales)
+
+ggplot(frequency, aes(frequency[,2], frequency[,3])) +
+  geom_jitter(alpha = 0.1, size = 2.5, width = 0.25, height = 0.25) +
+  geom_text(aes(label = word), check_overlap = TRUE, vjust = 1.5) +
+  scale_x_log10(labels = percent_format()) +
+  scale_y_log10(labels = percent_format()) +
+  geom_abline(color = "red")
+
+graph_associated_words <- function(min_freq){
+word_ratios <- tidy_books %>%
+  filter(!str_detect(word, "_")) %>%
+  count(word, project_is_approved) 
+
+word_ratios <- word_ratios[which(word_ratios$n > min_freq), ]
+
+new_word_ratios <- word_ratios %>%
+  ungroup() %>%
+  spread(project_is_approved, n, fill = 0) %>%
+  mutate_if(is.numeric, funs((. + 1) / sum(. + 1))) 
+
+logratio <- log(new_word_ratios[,2] / new_word_ratios[,3])
+
+new_word_ratios <- cbind(new_word_ratios, logratio)
+colnames(new_word_ratios) <- c("word", "not_approved", "approved", "logratio")
+
+#arrange_new_word_ratios <- new_word_ratios[order(new_word_ratios[,4]),] 
+
+#arrange_new_word_ratios <- new_word_ratios[order(-new_word_ratios[,4]),] 
+
+new_word_ratios %>% 
+  arrange(abs(new_word_ratios[,4]))
+
+
+new_word_ratios %>%
+  group_by(logratio < 0) %>%
+  top_n(15, abs(logratio)) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, logratio)) %>%
+  ggplot(aes(word, logratio, fill = logratio < 0)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  ylab("log odds ratio (not approved/approved)") +
+  scale_fill_discrete(name = "", labels = c("Not approved", "Approved"))
+
+}
+
+# Graph words associated with approved and not approved at different minimium frequencies
+graph_associated_words(5000)
+graph_associated_words(10000)
+graph_associated_words(15000)
+graph_associated_words(20000)
+graph_associated_words(25000)
+```
+
+## Which words in essay 1 are more likely to be associated with approval or not?
+
+```{r}
+library(purrr)
+library("ggrepel")
+
+# Get frequency of words
+
+frequency <- tidy_books %>% 
+  group_by(project_is_approved) %>% 
+  count(word, sort = TRUE) %>% 
+  left_join(tidy_books %>% 
+              group_by(project_is_approved) %>% 
+              summarise(total = n())) %>%
+  mutate(freq = n/total)
+
+# Select words that have been used at least 2000 times
+
+frequency_50 <- frequency[which(frequency$n > 2000),]
+
+frequency_50_0 <- frequency_50[which(frequency_50$project_is_approved != 1), ]
+frequency_50_1 <- frequency_50[which(frequency_50$project_is_approved == 1), ]
+
+appears_twice <- merge(frequency_50_0, frequency_50_1, by = c("word"))
+dim(appears_twice)
+
+ggplot(appears_twice, aes(freq.x, freq.y)) +
+  geom_point(alpha = 0.8, size = 2.5, width = 0.25, height = 0.25) +
+  geom_label_repel(aes(label = word)) +
+  scale_x_log10(labels = percent_format()) +
+  scale_y_log10(labels = percent_format()) +
+  geom_abline(color = "red")
+
+p <- ggplot(appears_twice, aes(freq.x, freq.y)) + 
+  geom_point(aes(text = word), alpha = 0.8, size = 2.5, width = 0.25, height = 0.25)  +
+  scale_x_log10(labels = percent_format()) +
+  scale_y_log10(labels = percent_format()) +
+  geom_abline(color = "red")
+
+ggplotly(p)
+```
+
+## Which words in essay 2 are more likely to be associated with approval?
+
+```{r}
+id_title <- c(1, 16, 11)
+
+train_text <- train[,id_title]
+train_text[,1] <- as.character(train_text[,1])
+train_text[,2] <- as.numeric(train_text[,2])
+train_text[,3] <- as.character(train_text[,3])
+
+
+train_text <- as.tibble(train_text)
+
+tidy_books <- train_text %>% unnest_tokens(word, project_essay_2)
+
+# Take out stop (common) words
+
+tidy_books <- tidy_books %>%
+  anti_join(stop_words)
+
+word_counts <- tidy_books %>%
+  anti_join(stop_words) %>%
+  count(id, word, sort = TRUE) %>%
+  ungroup()
+
+frequency <- tidy_books %>% 
+  group_by(project_is_approved) %>% 
+  count(word, sort = TRUE) %>% 
+  left_join(tidy_books %>% 
+              group_by(project_is_approved) %>% 
+              summarise(total = n())) %>%
+  mutate(freq = n/total)
+
+# Select words that have been used at least 2000 times
+
+frequency_50 <- frequency[which(frequency$n > 2000),]
+
+frequency_50_0 <- frequency_50[which(frequency_50$project_is_approved != 1), ]
+frequency_50_1 <- frequency_50[which(frequency_50$project_is_approved == 1), ]
+
+appears_twice <- merge(frequency_50_0, frequency_50_1, by = c("word"))
+dim(appears_twice)
+
+ggplot(appears_twice, aes(freq.x, freq.y)) +
+  geom_point(alpha = 0.8, size = 2.5, width = 0.25, height = 0.25) +
+  geom_label_repel(aes(label = word)) +
+  scale_x_log10(labels = percent_format()) +
+  scale_y_log10(labels = percent_format()) +
+  geom_abline(color = "red")
+
+p <- ggplot(appears_twice, aes(freq.x, freq.y)) + 
+  geom_point(aes(text = word), alpha = 0.8, size = 2.5, width = 0.25, height = 0.25)  +
+  scale_x_log10(labels = percent_format()) +
+  scale_y_log10(labels = percent_format()) +
+  geom_abline(color = "red")
+
+ggplotly(p)
+
+```
+
+## Which resources are more likely to be associated with approval?
+
+```{r}
+id_title <- c(1, 16, 14)
+
+train_text <- train[,id_title]
+train_text[,1] <- as.character(train_text[,1])
+train_text[,2] <- as.numeric(train_text[,2])
+train_text[,3] <- as.character(train_text[,3])
+
+
+train_text <- as.tibble(train_text)
+
+tidy_books <- train_text %>% unnest_tokens(word, project_resource_summary)
+
+# Take out stop (common) words
+
+tidy_books <- tidy_books %>%
+  anti_join(stop_words)
+
+word_counts <- tidy_books %>%
+  anti_join(stop_words) %>%
+  count(id, word, sort = TRUE) %>%
+  ungroup()
+
+frequency <- tidy_books %>% 
+  group_by(project_is_approved) %>% 
+  count(word, sort = TRUE) %>% 
+  left_join(tidy_books %>% 
+              group_by(project_is_approved) %>% 
+              summarise(total = n())) %>%
+  mutate(freq = n/total)
+
+summary(frequency$n)
+# Select words that have been used at least 2000 times
+
+frequency_50 <- frequency[which(frequency$n > 1500),]
+
+frequency_50_0 <- frequency_50[which(frequency_50$project_is_approved != 1), ]
+frequency_50_1 <- frequency_50[which(frequency_50$project_is_approved == 1), ]
+
+appears_twice <- merge(frequency_50_0, frequency_50_1, by = c("word"))
+dim(appears_twice)
+
+ggplot(appears_twice, aes(freq.x, freq.y)) +
+  geom_point(alpha = 0.8, size = 2.5, width = 0.25, height = 0.25) +
+  geom_label_repel(aes(label = word)) +
+  scale_x_log10(labels = percent_format()) +
+  scale_y_log10(labels = percent_format()) +
+  geom_abline(color = "red")
+
+p <- ggplot(appears_twice, aes(freq.x, freq.y)) + 
+  geom_point(aes(text = word), alpha = 0.8, size = 2.5, width = 0.25, height = 0.25)  +
+  scale_x_log10(labels = percent_format()) +
+  scale_y_log10(labels = percent_format()) +
+  geom_abline(color = "red")
+
+ggplotly(p)
+
+```
+
+## Which titles are more likely to be associated with approval?
+
+```{r}
+id_title <- c(1, 16, 9)
+
+train_text <- train[,id_title]
+train_text[,1] <- as.character(train_text[,1])
+train_text[,2] <- as.numeric(train_text[,2])
+train_text[,3] <- as.character(train_text[,3])
+
+
+train_text <- as.tibble(train_text)
+
+tidy_books <- train_text %>% unnest_tokens(word, project_title)
+
+# Take out stop (common) words
+
+tidy_books <- tidy_books %>%
+  anti_join(stop_words)
+
+word_counts <- tidy_books %>%
+  anti_join(stop_words) %>%
+  count(id, word, sort = TRUE) %>%
+  ungroup()
+
+frequency <- tidy_books %>% 
+  group_by(project_is_approved) %>% 
+  count(word, sort = TRUE) %>% 
+  left_join(tidy_books %>% 
+              group_by(project_is_approved) %>% 
+              summarise(total = n())) %>%
+  mutate(freq = n/total)
+
+summary(frequency$n)
+
+# Select words that have been used at least 2000 times
+
+frequency_50 <- frequency[which(frequency$n > 300),]
+
+frequency_50_0 <- frequency_50[which(frequency_50$project_is_approved != 1), ]
+frequency_50_1 <- frequency_50[which(frequency_50$project_is_approved == 1), ]
+
+appears_twice <- merge(frequency_50_0, frequency_50_1, by = c("word"))
+dim(appears_twice)
+
+ggplot(appears_twice, aes(freq.x, freq.y)) +
+  geom_point(alpha = 0.8, size = 2.5, width = 0.25, height = 0.25) +
+  geom_label_repel(aes(label = word)) +
+  scale_x_log10(labels = percent_format()) +
+  scale_y_log10(labels = percent_format()) +
+  geom_abline(color = "red")
+
+p <- ggplot(appears_twice, aes(freq.x, freq.y)) + 
+  geom_point(aes(text = word), alpha = 0.8, size = 2.5, width = 0.25, height = 0.25)  +
+  scale_x_log10(labels = percent_format()) +
+  scale_y_log10(labels = percent_format()) +
+  geom_abline(color = "red")
+
+ggplotly(p)
+
+```
+
+
+## Session information
+
+<!-- Insert the session information into the document -->
+```{r session-info}
+```
