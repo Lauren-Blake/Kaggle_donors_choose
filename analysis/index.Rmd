@@ -9,4 +9,4 @@ Welcome to my research website for Kaggle's Donors Choose competition. For more 
 
 To see the results of the sentiment analysis on the title and essays 1+2, click [here](Sentiment_analysis.html). There is also preliminary analysis regarding frequencies of particular words and approval status [here](Word_frequency.html).  
 
-To see the code and preliminary prediction results using XGBoost, click [here](Preliminary_analysis_xgboost.html)
+To see the code and preliminary prediction results using XGBoost, click [here](Preliminary_analysis_xgboost.html).
