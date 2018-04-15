@@ -1,0 +1,306 @@
+---
+title: "Preliminary analysis with XGBoost"
+author: "Lauren Blake"
+date: 2018-04-06
+output: html_document
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+# Introduction
+
+The goal of this script is to run XGBoost on a model. 
+
+```{r}
+# Libraries
+
+library(dplyr)
+library(stringr)
+library(tidytext)
+library(ggplot2)
+library(tidyverse)
+library("xgboost")
+
+# Open the datasets
+
+train <- read.csv("~/Dropbox/DonorsChoose/train.csv")
+test <- read.csv("~/Dropbox/DonorsChoose/test.csv")
+resources <- read.csv("~/Dropbox/DonorsChoose/resources.csv")
+
+```
+
+# Get information about the word count for the title and each essay
+
+
+
+# Get information about the sentiments of the title and each essay
+
+
+
+# Analyze resources
+
+Get total price and number of items
+
+```{r}
+# Total price
+resources[,1] <- as.character(resources[,1])
+resources_total_price <- as.data.frame(cbind(resources$id, resources$quantity*resources$price), stringsAsFactors = FALSE)
+resources_total_price[,2] <- as.numeric(resources_total_price[,2])
+
+resources_total_price2 <- aggregate(resources_total_price[,2], by=list(Category=resources_total_price[,1]), FUN=sum)
+
+# Total quantity
+
+resources_quantity_total <- aggregate(resources$quantity, by=list(Category=resources$id), FUN=sum)
+
+resources_together <- as.data.frame(cbind(resources_total_price2, resources_quantity_total[,2]), stringsAsFactors = FALSE)
+
+colnames(resources_together) <- c("id", "total_amount", "total_items")
+
+# Merge resources with training and test data
+
+training_data <- merge(resources_together, train, by = c("id"))
+
+testing_data <- merge(resources_together, test, by = c("id"))
+
+```
+
+
+# Split the training data into training and test data
+
+```{r}
+## set the seed to make your partition reproductible
+set.seed(123)
+
+## 75% of the sample size
+smp_size <- floor(0.75 * nrow(training_data))
+train_ind <- sample(seq_len(nrow(training_data)), size = smp_size)
+
+train <- training_data[train_ind, ]
+test2 <- training_data[-train_ind, ]
+
+```
+
+
+# Experiment with XGBoost
+
+```{r}
+#str(train)
+
+#basic_features <- c(2,3,5,6,8,9,17)
+
+
+#train_data <- train[,basic_features]
+
+# XGBoost only works with numeric vectors
+
+#train_data[,1] <- as.numeric(train_data[,1])
+#train_data[,2] <- as.numeric(train_data[,2])
+#train_data[,3] <- as.numeric(train_data[,3])
+#train_data[,4] <- as.numeric(train_data[,4])
+#train_data[,5] <- as.numeric(train_data[,5])
+#train_data[,6] <- as.numeric(train_data[,6])
+
+#train_data <- as.list(train_data)
+#train_data <- as.matrix(train_data)
+#train_labels <- as.matrix(train[,18])
+
+#dtrain <- xgb.DMatrix(data = train_data[,1:7], label=train_labels)
+#dtest <- xgb.DMatrix(data = test$data, label=test$label)
+
+
+######## Update
+
+#basic_features <- c(2,3,5,6,8,9,17)
+
+
+#train_data <- train[,basic_features]
+
+#train_data[,1] <- as.numeric(train_data[,1])
+#train_data[,2] <- as.numeric(train_data[,2])
+#train_data[,3] <- as.(train_data[,3])
+#train_data[,4] <- as.numeric(train_data[,4])
+
+#train_data <- as.list(train_data)
+#train_data <- as.matrix(train_data)
+
+
+#dtrain <- xgb.DMatrix(data = train_data, label=train_labels)
+#dtest <- xgb.DMatrix(data = test$data, label=test$label)
+
+#bst <- xgboost(data = dtrain, max.depth = 5, eta = 1, nthread = 2, nround = 3, objective = "binary:logistic", verbose = 1)
+
+#importance_matrix <- xgb.importance(model = bst)
+#print(importance_matrix)
+
+# Adjust the test data
+
+#basic_features <- c(2,3,5,6,8,9,17)
+
+
+#test2_data <- test2[,basic_features]
+
+# XGBoost only works with numeric vectors
+
+#test2_data[,1] <- as.numeric(test2_data[,1])
+#test2_data[,2] <- as.numeric(test2_data[,2])
+#test2_data[,3] <- as.numeric(test2_data[,3])
+#test2_data[,4] <- as.numeric(test2_data[,4])
+#test2_data[,5] <- as.numeric(test2_data[,5])
+#test2_data[,6] <- as.numeric(test2_data[,6])
+
+#train_data <- as.list(train_data)
+#test2_data <- as.matrix(test2_data)
+#test2_labels <- as.matrix(test2_data[,18])
+
+#dtrain <- xgb.DMatrix(data = train_data[,1:7], label=train_labels)
+
+# Make prediction
+#pred <- predict(bst, test_data[,1:5])
+
+#err <- mean(as.numeric(pred > 0.5) != test_data[,6])
+#print(paste("test-error=", err))
+
+# Look at cross validation
+
+#bst_model <- xgb.cv(data=dtrain, max_depth=50, eta=1, nthread = 2, nrounds=30, nfold = 5, watchlist=watchlist, eval_metric = "error", eval_metric = "logloss", objective = "binary:logistic", scale_pos_weight = negative_cases/positive_cases)
+
+# Weighting by the number of positive versus negative cases
+
+#negative_cases <- sum(train_data[,6] == 0)
+#positive_cases <- sum(train_data[,6] == 1)
+
+# Experiment with dtest
+
+#dtest <- xgb.DMatrix(data = test_data[,1:5], label=test_data[,6])
+#watchlist <- list(train=dtrain, test=dtest)
+#bst <- xgb.train(data=dtrain, max_depth=70, eta=1, nthread = 2, nrounds=30, watchlist=watchlist, eval_metric = "error", eval_metric = "logloss", objective = "binary:logistic")
+
+#pred <- predict(bst, test_data[,1:5])
+#err <- mean(as.numeric(pred > 0.5) != test_data[,6])
+#print(paste("test-error=", err))
+
+#importance_matrix <- xgb.importance(model = bst)
+#print(importance_matrix)
+
+# Perform linear boosting and look at its performance
+
+#bst <- xgb.train(data=dtrain, booster = "gblinear", max_depth=2, nthread = 2, nrounds=2, watchlist=watchlist, eval_metric = "error", eval_metric = "logloss", objective = "binary:logistic", scale_pos_weight = negative_cases/positive_cases)
+```
+
+# Run a model with XGBoost
+
+```{r}
+################################## Training data #############################
+
+basic_features <- c(2,3,5,6,8,9,17)
+
+
+train_data <- train[,basic_features]
+
+# XGBoost only works with numeric vectors
+
+train_data[,1] <- as.numeric(train_data[,1])
+train_data[,2] <- as.numeric(train_data[,2])
+train_data[,3] <- as.numeric(train_data[,3])
+train_data[,4] <- as.numeric(train_data[,4])
+train_data[,5] <- as.numeric(train_data[,5])
+train_data[,6] <- as.numeric(train_data[,6])
+
+#train_data <- as.list(train_data)
+train_data <- as.matrix(train_data)
+train_labels <- as.matrix(train[,18])
+
+################################## Test data #############################
+
+basic_features <- c(2,3,5,6,8,9,17)
+
+
+test2_data <- test2[,basic_features]
+
+# XGBoost only works with numeric vectors
+
+test2_data[,1] <- as.numeric(test2_data[,1])
+test2_data[,2] <- as.numeric(test2_data[,2])
+test2_data[,3] <- as.numeric(test2_data[,3])
+test2_data[,4] <- as.numeric(test2_data[,4])
+test2_data[,5] <- as.numeric(test2_data[,5])
+test2_data[,6] <- as.numeric(test2_data[,6])
+
+#train_data <- as.list(train_data)
+test2_data <- as.matrix(test2_data)
+test2_labels <- as.matrix(test2[,18])
+
+############ Run dtrain and dtest, weight by the unequal number of positive and negative cases ##############
+
+dtrain <- xgb.DMatrix(data = train_data[,1:7], label=train_labels)
+
+dtest <- xgb.DMatrix(data = test2_data[,1:7], label=test2_labels)
+
+watchlist <- list(train=dtrain, test=dtest)
+
+negative_cases <- sum(train_labels == 0)
+positive_cases <- sum(train_labels == 1)
+
+bst <- xgb.train(data=dtrain, max_depth=70, eta=1, nthread = 2, nrounds=24, watchlist=watchlist, scale_pos_weight = negative_cases/positive_cases, eval_metric = "error", eval_metric = "logloss", objective = "binary:logistic")
+
+pred <- predict(bst, test2_data[,1:7])
+```
+
+
+
+# Run the test data and output the probability that the project is approved for each id in the test data
+
+```{r}
+#test <- read.csv("~/Dropbox/DonorsChoose/test.csv")
+#test[,1] <- as.character(test[,1])
+
+#basic_features <- c(3,4, 6,7,15)
+
+test_data <- testing_data[,basic_features]
+
+test_data[,1] <- as.numeric(test_data[,1])
+test_data[,2] <- as.numeric(test_data[,2])
+test_data[,3] <- as.numeric(test_data[,3])
+test_data[,4] <- as.numeric(test_data[,4])
+test_data[,5] <- as.numeric(test_data[,5])
+test_data[,6] <- as.numeric(test_data[,6])
+
+#train_data <- as.list(train_data)
+test_data <- as.matrix(test_data)
+
+pred <- predict(bst, test_data)
+
+make_csv <- as.data.frame(cbind(testing_data$id, pred), stringsAsFactors = FALSE)
+colnames(make_csv) <- cbind("id", "project_is_approved")
+
+boxplot(as.numeric(make_csv$project_is_approved))
+
+order_id <- make_csv[order(match(make_csv$id, test$id)), ]
+
+
+```
+
+
+## Session information
+
+<!-- Insert the session information into the document -->
+```{r session-info}
+```
