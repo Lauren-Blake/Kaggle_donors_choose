@@ -46,13 +46,6 @@ resources <- read.csv("~/Dropbox/DonorsChoose/resources.csv")
 
 ```
 
-# Get information about the word count for the title and each essay
-
-
-
-# Get information about the sentiments of the title and each essay
-
-
 
 # Analyze resources
 
@@ -295,8 +288,16 @@ boxplot(as.numeric(make_csv$project_is_approved), ylim = c(0,1), main = "Probabi
 
 order_id <- make_csv[order(match(make_csv$id, test$id)), ]
 
-write.csv(order_id, "../data/sample_submission.csv", row.names = FALSE, sep="\t")
+write.csv(order_id, "../data/sample_submission.csv", row.names = FALSE, sep= ",")
 ```
+
+# Results
+
+This entry scored 0.57367, which was slightly higher than the "Getting Started Benchmark" of 0.56522.
+
+# To do:
+
+Incorporate information about the word count for the title and each essay to the model. Also, incorporate the information about the sentiment scores of the title and each essay to the model. 
 
 
 ## Session information
