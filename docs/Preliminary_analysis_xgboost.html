@@ -321,10 +321,10 @@ div.section {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-04-15</p>
+<p><strong>Last updated:</strong> 2018-04-18</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 19370f1</p>
+<p><strong>Code version:</strong> e40964f</p>
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
 <p>The goal of this script is to run XGBoost on a model.</p>
@@ -362,12 +362,6 @@ Attaching package: &#39;xgboost&#39;</code></pre>
 train &lt;- read.csv(&quot;~/Dropbox/DonorsChoose/train.csv&quot;)
 test &lt;- read.csv(&quot;~/Dropbox/DonorsChoose/test.csv&quot;)
 resources &lt;- read.csv(&quot;~/Dropbox/DonorsChoose/resources.csv&quot;)</code></pre>
-</div>
-<div id="get-information-about-the-word-count-for-the-title-and-each-essay" class="section level1">
-<h1>Get information about the word count for the title and each essay</h1>
-</div>
-<div id="get-information-about-the-sentiments-of-the-title-and-each-essay" class="section level1">
-<h1>Get information about the sentiments of the title and each essay</h1>
 </div>
 <div id="analyze-resources" class="section level1">
 <h1>Analyze resources</h1>
@@ -617,9 +611,17 @@ boxplot(as.numeric(make_csv$project_is_approved), ylim = c(0,1), main = &quot;Pr
 <p><img src="figure/Preliminary_analysis_xgboost.Rmd/unnamed-chunk-6-1.png" width="672" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>order_id &lt;- make_csv[order(match(make_csv$id, test$id)), ]
 
-write.csv(order_id, &quot;../data/sample_submission.csv&quot;, row.names = FALSE, sep=&quot;\t&quot;)</code></pre>
+write.csv(order_id, &quot;../data/sample_submission.csv&quot;, row.names = FALSE, sep= &quot;,&quot;)</code></pre>
 <pre><code>Warning in write.csv(order_id, &quot;../data/sample_submission.csv&quot;, row.names =
 FALSE, : attempt to set &#39;sep&#39; ignored</code></pre>
+</div>
+<div id="results" class="section level1">
+<h1>Results</h1>
+<p>This entry scored 0.57367, which was slightly higher than the “Getting Started Benchmark” of 0.56522.</p>
+</div>
+<div id="to-do" class="section level1">
+<h1>To do:</h1>
+<p>Incorporate information about the word count for the title and each essay to the model. Also, incorporate the information about the sentiment scores of the title and each essay to the model.</p>
 <div id="session-information" class="section level2">
 <h2>Session information</h2>
 <!-- Insert the session information into the document -->
