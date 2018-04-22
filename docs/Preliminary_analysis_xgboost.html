@@ -321,10 +321,10 @@ div.section {
 shared across the workflowr files. -->
 <!-- Update knitr chunk options -->
 <!-- Insert the date the file was last updated -->
-<p><strong>Last updated:</strong> 2018-04-18</p>
+<p><strong>Last updated:</strong> 2018-04-22</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> e40964f</p>
+<p><strong>Code version:</strong> 8d34e54</p>
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
 <p>The goal of this script is to run XGBoost on a model.</p>
@@ -618,6 +618,49 @@ FALSE, : attempt to set &#39;sep&#39; ignored</code></pre>
 <div id="results" class="section level1">
 <h1>Results</h1>
 <p>This entry scored 0.57367, which was slightly higher than the “Getting Started Benchmark” of 0.56522.</p>
+</div>
+<div id="compare-with-unweighted" class="section level1">
+<h1>Compare with unweighted</h1>
+<pre class="r"><code>bst_no_weights &lt;- xgb.train(data=dtrain, max_depth=70, eta=1, nthread = 2, nrounds=24, watchlist=watchlist, eval_metric = &quot;error&quot;, eval_metric = &quot;logloss&quot;, objective = &quot;binary:logistic&quot;)</code></pre>
+<pre><code>[1] train-error:0.123411    train-logloss:0.374869  test-error:0.192465 test-logloss:0.450134 
+[2] train-error:0.101216    train-logloss:0.273486  test-error:0.190290 test-logloss:0.472310 
+[3] train-error:0.069786    train-logloss:0.206753  test-error:0.194398 test-logloss:0.498582 
+[4] train-error:0.044955    train-logloss:0.160156  test-error:0.194991 test-logloss:0.522166 
+[5] train-error:0.027460    train-logloss:0.127830  test-error:0.196507 test-logloss:0.541389 
+[6] train-error:0.015927    train-logloss:0.104793  test-error:0.196090 test-logloss:0.558768 
+[7] train-error:0.008861    train-logloss:0.088333  test-error:0.195936 test-logloss:0.572308 
+[8] train-error:0.004643    train-logloss:0.075315  test-error:0.193739 test-logloss:0.586103 
+[9] train-error:0.002724    train-logloss:0.065727  test-error:0.192421 test-logloss:0.597602 
+[10]    train-error:0.001494    train-logloss:0.057916  test-error:0.191586 test-logloss:0.607666 
+[11]    train-error:0.001018    train-logloss:0.051763  test-error:0.191081 test-logloss:0.617847 
+[12]    train-error:0.000769    train-logloss:0.046775  test-error:0.190576 test-logloss:0.627764 
+[13]    train-error:0.000681    train-logloss:0.042528  test-error:0.190356 test-logloss:0.636424 
+[14]    train-error:0.000593    train-logloss:0.039594  test-error:0.190004 test-logloss:0.642489 
+[15]    train-error:0.000549    train-logloss:0.036746  test-error:0.189631 test-logloss:0.650398 
+[16]    train-error:0.000513    train-logloss:0.034178  test-error:0.189609 test-logloss:0.657826 
+[17]    train-error:0.000491    train-logloss:0.031962  test-error:0.188818 test-logloss:0.663767 
+[18]    train-error:0.000498    train-logloss:0.030075  test-error:0.189170 test-logloss:0.670068 
+[19]    train-error:0.000491    train-logloss:0.028274  test-error:0.189257 test-logloss:0.676331 
+[20]    train-error:0.000483    train-logloss:0.027100  test-error:0.189521 test-logloss:0.680688 
+[21]    train-error:0.000476    train-logloss:0.025694  test-error:0.189038 test-logloss:0.685980 
+[22]    train-error:0.000476    train-logloss:0.024884  test-error:0.189082 test-logloss:0.689753 
+[23]    train-error:0.000476    train-logloss:0.023861  test-error:0.188642 test-logloss:0.694008 
+[24]    train-error:0.000469    train-logloss:0.022827  test-error:0.188181 test-logloss:0.698641 </code></pre>
+<pre class="r"><code>pred_no_weights &lt;- predict(bst_no_weights, test_data)
+
+make_csv &lt;- as.data.frame(cbind(testing_data$id, pred_no_weights), stringsAsFactors = FALSE)
+colnames(make_csv) &lt;- cbind(&quot;id&quot;, &quot;project_is_approved&quot;)
+
+boxplot(as.numeric(make_csv$project_is_approved), ylim = c(0,1), main = &quot;Probability of approval for each project&quot;)</code></pre>
+<p><img src="figure/Preliminary_analysis_xgboost.Rmd/unnamed-chunk-7-1.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>order_id &lt;- make_csv[order(match(make_csv$id, test$id)), ]
+
+write.csv(order_id, &quot;../data/sample_submission_no_weights.csv&quot;, row.names = FALSE, sep= &quot;,&quot;)</code></pre>
+<pre><code>Warning in write.csv(order_id, &quot;../data/
+sample_submission_no_weights.csv&quot;, : attempt to set &#39;sep&#39; ignored</code></pre>
+</div>
+<div id="results-with-unweighted" class="section level1">
+<h1>Results with unweighted</h1>
 </div>
 <div id="to-do" class="section level1">
 <h1>To do:</h1>
