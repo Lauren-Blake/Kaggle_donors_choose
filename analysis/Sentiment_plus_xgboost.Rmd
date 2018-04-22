@@ -1,0 +1,156 @@
+---
+title: "Untitled"
+author: "First Last"
+date: YYYY-MM-DD
+output: html_document
+---
+
+<!-- The file analysis/chunks.R contains chunks that define default settings
+shared across the workflowr files. -->
+```{r read-chunk, include=FALSE, cache=FALSE}
+knitr::read_chunk("chunks.R")
+```
+
+<!-- Update knitr chunk options -->
+```{r knitr-opts-chunk, include=FALSE}
+```
+
+<!-- Insert the date the file was last updated -->
+```{r last-updated, echo=FALSE, results='asis'}
+```
+
+<!-- Insert the code version (Git commit SHA1) if Git repository exists and R
+ package git2r is installed -->
+```{r code-version, echo=FALSE, results='asis'}
+```
+
+# Introduction
+
+The goal of this script is to run XGBoost on a model which includes information about the essays.
+
+```{r}
+# Libraries
+
+library(dplyr)
+library(stringr)
+library(tidytext)
+library(ggplot2)
+library(tidyverse)
+library("xgboost")
+
+
+# Open the datasets
+
+train <- read.csv("~/Dropbox/DonorsChoose/train.csv")
+test <- read.csv("~/Dropbox/DonorsChoose/test.csv")
+resources <- read.csv("~/Dropbox/DonorsChoose/resources.csv")
+
+```
+
+# Get the number of words in the title
+
+
+```{r}
+# First, we want to select project id, title name, and if the project was approved or not
+
+id_title <- c(1, 16, 9)
+
+train_text <- train[,id_title]
+train_text[,1] <- as.character(train_text[,1])
+train_text[,2] <- as.numeric(train_text[,2])
+train_text[,3] <- as.character(train_text[,3])
+
+train_text <- as.tibble(train_text)
+
+tidy_books <- train_text %>% unnest_tokens(word, project_title)
+
+# Take out stop (common) words
+
+tidy_books <- tidy_books %>%
+  anti_join(stop_words)
+
+freq_table <- count(tidy_books, id) 
+
+title_word_count_by_project <- left_join(freq_table, train_text[,1:2], by = c("id"))
+
+title_word_count_by_project <- as.data.frame(title_word_count_by_project)
+
+```
+
+# Get number of words in essay 1
+
+```{r}
+# First, we want to select project id, title name, and if the project was approved or not
+
+id_title <- c(1, 16, 10)
+
+train_text <- train[,id_title]
+train_text[,1] <- as.character(train_text[,1])
+train_text[,2] <- as.numeric(train_text[,2])
+train_text[,3] <- as.character(train_text[,3])
+
+train_text <- as.tibble(train_text)
+
+tidy_books <- train_text %>% unnest_tokens(word, project_essay_1)
+
+# Find how many words in essay1
+
+freq_table <- count(tidy_books, id) 
+
+essay1_word_count_by_project <- left_join(freq_table, train_text[,1:2], by = c("id"))
+
+# Take out stop (common) words
+
+tidy_books <- tidy_books %>%
+  anti_join(stop_words)
+
+freq_table <- count(tidy_books, id) 
+
+essay1_word_count_by_project <- left_join(freq_table, train_text[,1:2], by = c("id"))
+
+essay1_word_count_by_project <- as.data.frame(essay1_word_count_by_project)
+```
+
+# Get number of words in essay 1
+
+```{r}
+# First, we want to select project id, title name, and if the project was approved or not
+
+id_title <- c(1, 16, 11)
+
+train_text <- train[,id_title]
+train_text[,1] <- as.character(train_text[,1])
+train_text[,2] <- as.numeric(train_text[,2])
+train_text[,3] <- as.character(train_text[,3])
+
+train_text <- as.tibble(train_text)
+
+tidy_books <- train_text %>% unnest_tokens(word, project_essay_2)
+
+# Find how many words in essay1
+
+freq_table <- count(tidy_books, id) 
+
+essay2_word_count_by_project <- left_join(freq_table, train_text[,1:2], by = c("id"))
+
+# Take out stop (common) words
+
+tidy_books <- tidy_books %>%
+  anti_join(stop_words)
+
+freq_table <- count(tidy_books, id) 
+
+essay2_word_count_by_project <- left_join(freq_table, train_text[,1:2], by = c("id"))
+
+essay2_word_count_by_project <- as.data.frame(essay2_word_count_by_project)
+```
+
+
+# Get minimium and median 
+
+
+## Session information
+
+<!-- Insert the session information into the document -->
+```{r session-info}
+```
