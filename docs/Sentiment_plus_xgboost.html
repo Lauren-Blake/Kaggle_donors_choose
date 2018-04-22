@@ -9,10 +9,11 @@
 <meta name="generator" content="pandoc" />
 
 
-<meta name="author" content="First Last" />
+<meta name="author" content="Lauren Blake" />
 
+<meta name="date" content="2018-04-22" />
 
-<title>Untitled</title>
+<title>Sentiment in XGBoost</title>
 
 <script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -309,9 +310,9 @@ div.section {
 
 
 
-<h1 class="title toc-ignore">Untitled</h1>
-<h4 class="author"><em>First Last</em></h4>
-<h4 class="date"><em>YYYY-MM-DD</em></h4>
+<h1 class="title toc-ignore">Sentiment in XGBoost</h1>
+<h4 class="author"><em>Lauren Blake</em></h4>
+<h4 class="date"><em>2018-04-22</em></h4>
 
 </div>
 
@@ -323,7 +324,7 @@ shared across the workflowr files. -->
 <p><strong>Last updated:</strong> 2018-04-22</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> 30773b1</p>
+<p><strong>Code version:</strong> bcdad99</p>
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
 <p>The goal of this script is to run XGBoost on a model which includes information about the essays.</p>
@@ -388,6 +389,27 @@ title_word_count_by_project &lt;- left_join(freq_table, train_text[,1:2], by = c
 
 title_word_count_by_project &lt;- as.data.frame(title_word_count_by_project)</code></pre>
 </div>
+<div id="function-for-minimium-and-median" class="section level1">
+<h1>Function for minimium and median</h1>
+<pre class="r"><code>get_min_med &lt;- function(name_of_tibble){
+# Get minimium and median
+janeaustensentiment &lt;- tidy_books %&gt;% inner_join(get_sentiments(&quot;afinn&quot;))
+
+check_min &lt;- aggregate(janeaustensentiment$score, by = list(janeaustensentiment$id), FUN = min)
+colnames(check_min) &lt;- c(&quot;id&quot;, &quot;min_score&quot;)
+
+check_med &lt;- aggregate(janeaustensentiment$score, by = list(janeaustensentiment$id), FUN = median)
+colnames(check_med) &lt;- c(&quot;id&quot;, &quot;med_score&quot;)
+
+check_corr_titles &lt;- cbind(check_min$id, check_min$min_score, check_med$med_score)
+colnames(check_corr_titles) &lt;- c(&quot;id&quot;, &quot;min_score&quot;, &quot;med_score&quot;)
+
+check_corr_titles &lt;- as.data.frame(check_corr_titles)
+}
+
+min_med_title &lt;- get_min_med(tidy_books)</code></pre>
+<pre><code>Joining, by = &quot;word&quot;</code></pre>
+</div>
 <div id="get-number-of-words-in-essay-1" class="section level1">
 <h1>Get number of words in essay 1</h1>
 <pre class="r"><code># First, we want to select project id, title name, and if the project was approved or not
@@ -418,10 +440,13 @@ tidy_books &lt;- tidy_books %&gt;%
 
 essay1_word_count_by_project &lt;- left_join(freq_table, train_text[,1:2], by = c(&quot;id&quot;))
 
-essay1_word_count_by_project &lt;- as.data.frame(essay1_word_count_by_project)</code></pre>
+essay1_word_count_by_project &lt;- as.data.frame(essay1_word_count_by_project)
+
+min_med_essay1 &lt;- get_min_med(tidy_books)</code></pre>
+<pre><code>Joining, by = &quot;word&quot;</code></pre>
 </div>
-<div id="get-number-of-words-in-essay-1-1" class="section level1">
-<h1>Get number of words in essay 1</h1>
+<div id="get-number-of-words-in-essay-2" class="section level1">
+<h1>Get number of words in essay 2</h1>
 <pre class="r"><code># First, we want to select project id, title name, and if the project was approved or not
 
 id_title &lt;- c(1, 16, 11)
@@ -450,10 +475,25 @@ tidy_books &lt;- tidy_books %&gt;%
 
 essay2_word_count_by_project &lt;- left_join(freq_table, train_text[,1:2], by = c(&quot;id&quot;))
 
-essay2_word_count_by_project &lt;- as.data.frame(essay2_word_count_by_project)</code></pre>
+essay2_word_count_by_project &lt;- as.data.frame(essay2_word_count_by_project)
+
+min_med_essay2 &lt;- get_min_med(tidy_books)</code></pre>
+<pre><code>Joining, by = &quot;word&quot;</code></pre>
 </div>
-<div id="get-minimium-and-median" class="section level1">
-<h1>Get minimium and median</h1>
+<div id="combine-information" class="section level1">
+<h1>Combine information</h1>
+<pre class="r"><code>text_info &lt;- cbind(title_word_count_by_project$id, title_word_count_by_project$n, min_med_title$min_score, min_med_title$med_score, essay1_word_count_by_project$n, min_med_essay1$min_score, min_med_essay1$med_score, essay2_word_count_by_project$n, min_med_essay2$min_score, min_med_essay2$med_score)</code></pre>
+<pre><code>Warning in cbind(title_word_count_by_project$id,
+title_word_count_by_project$n, : number of rows of result is not a multiple
+of vector length (arg 1)</code></pre>
+<pre class="r"><code>head(text_info)</code></pre>
+<pre><code>     [,1]      [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10]
+[1,] &quot;p000002&quot; &quot;4&quot;  &quot;6&quot;  &quot;12&quot; &quot;54&quot; &quot;2&quot;  &quot;11&quot; &quot;76&quot; &quot;1&quot;  &quot;10&quot; 
+[2,] &quot;p000003&quot; &quot;4&quot;  &quot;2&quot;  &quot;4&quot;  &quot;32&quot; &quot;6&quot;  &quot;11&quot; &quot;63&quot; &quot;6&quot;  &quot;11&quot; 
+[3,] &quot;p000004&quot; &quot;1&quot;  &quot;5&quot;  &quot;10&quot; &quot;45&quot; &quot;5&quot;  &quot;10&quot; &quot;43&quot; &quot;1&quot;  &quot;9&quot;  
+[4,] &quot;p000006&quot; &quot;4&quot;  &quot;5&quot;  &quot;10&quot; &quot;32&quot; &quot;1&quot;  &quot;13&quot; &quot;43&quot; &quot;7&quot;  &quot;11&quot; 
+[5,] &quot;p000007&quot; &quot;3&quot;  &quot;5&quot;  &quot;10&quot; &quot;49&quot; &quot;1&quot;  &quot;11&quot; &quot;55&quot; &quot;6&quot;  &quot;10&quot; 
+[6,] &quot;p000008&quot; &quot;4&quot;  &quot;6&quot;  &quot;12&quot; &quot;36&quot; &quot;2&quot;  &quot;8&quot;  &quot;81&quot; &quot;3&quot;  &quot;9&quot;  </code></pre>
 <div id="session-information" class="section level2">
 <h2>Session information</h2>
 <!-- Insert the session information into the document -->
@@ -473,30 +513,29 @@ attached base packages:
 [1] stats     graphics  grDevices utils     datasets  methods   base     
 
 other attached packages:
- [1] xgboost_0.6.4.1 forcats_0.2.0   purrr_0.2.4     readr_1.1.1    
- [5] tidyr_0.7.2     tibble_1.4.2    tidyverse_1.2.1 ggplot2_2.2.1  
- [9] tidytext_0.1.8  stringr_1.3.0   dplyr_0.7.4    
+ [1] bindrcpp_0.2    xgboost_0.6.4.1 forcats_0.2.0   purrr_0.2.4    
+ [5] readr_1.1.1     tidyr_0.7.2     tibble_1.4.2    tidyverse_1.2.1
+ [9] ggplot2_2.2.1   tidytext_0.1.8  stringr_1.3.0   dplyr_0.7.4    
 
 loaded via a namespace (and not attached):
  [1] reshape2_1.4.3      haven_1.1.1         lattice_0.20-35    
  [4] colorspace_1.3-2    htmltools_0.3.6     SnowballC_0.5.1    
  [7] yaml_2.1.18         rlang_0.1.6         pillar_1.1.0       
 [10] foreign_0.8-69      glue_1.2.0          modelr_0.1.1       
-[13] readxl_1.0.0        bindrcpp_0.2        bindr_0.1          
-[16] plyr_1.8.4          munsell_0.4.3       gtable_0.2.0       
-[19] cellranger_1.1.0    rvest_0.3.2         psych_1.7.8        
-[22] evaluate_0.10.1     knitr_1.20          parallel_3.4.3     
-[25] broom_0.4.3         tokenizers_0.2.0    Rcpp_0.12.15       
-[28] backports_1.1.2     scales_0.5.0        jsonlite_1.5       
-[31] mnormt_1.5-5        hms_0.4.0           digest_0.6.15      
-[34] stringi_1.1.7       grid_3.4.3          rprojroot_1.3-2    
-[37] cli_1.0.0           tools_3.4.3         magrittr_1.5       
-[40] lazyeval_0.2.1      janeaustenr_0.1.5   crayon_1.3.4       
-[43] pkgconfig_2.0.1     Matrix_1.2-13       data.table_1.10.4-3
-[46] xml2_1.1.1          lubridate_1.7.1     assertthat_0.2.0   
-[49] rmarkdown_1.9       httr_1.3.1          rstudioapi_0.7     
-[52] R6_2.2.2            nlme_3.1-131        git2r_0.21.0       
-[55] compiler_3.4.3     </code></pre>
+[13] readxl_1.0.0        bindr_0.1           plyr_1.8.4         
+[16] munsell_0.4.3       gtable_0.2.0        cellranger_1.1.0   
+[19] rvest_0.3.2         psych_1.7.8         evaluate_0.10.1    
+[22] knitr_1.20          parallel_3.4.3      broom_0.4.3        
+[25] tokenizers_0.2.0    Rcpp_0.12.15        backports_1.1.2    
+[28] scales_0.5.0        jsonlite_1.5        mnormt_1.5-5       
+[31] hms_0.4.0           digest_0.6.15       stringi_1.1.7      
+[34] grid_3.4.3          rprojroot_1.3-2     cli_1.0.0          
+[37] tools_3.4.3         magrittr_1.5        lazyeval_0.2.1     
+[40] janeaustenr_0.1.5   crayon_1.3.4        pkgconfig_2.0.1    
+[43] Matrix_1.2-13       data.table_1.10.4-3 xml2_1.1.1         
+[46] lubridate_1.7.1     assertthat_0.2.0    rmarkdown_1.9      
+[49] httr_1.3.1          rstudioapi_0.7      R6_2.2.2           
+[52] nlme_3.1-131        git2r_0.21.0        compiler_3.4.3     </code></pre>
 </div>
 </div>
 
