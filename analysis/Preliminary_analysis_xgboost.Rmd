@@ -254,6 +254,8 @@ positive_cases <- sum(train_labels == 1)
 
 bst <- xgb.train(data=dtrain, max_depth=70, eta=1, nthread = 2, nrounds=24, watchlist=watchlist, scale_pos_weight = negative_cases/positive_cases, eval_metric = "error", eval_metric = "logloss", objective = "binary:logistic")
 
+
+
 pred <- predict(bst, test2_data[,1:7])
 ```
 
@@ -294,6 +296,29 @@ write.csv(order_id, "../data/sample_submission.csv", row.names = FALSE, sep= ","
 # Results
 
 This entry scored 0.57367, which was slightly higher than the "Getting Started Benchmark" of 0.56522.
+
+# Compare with unweighted
+
+```{r}
+bst_no_weights <- xgb.train(data=dtrain, max_depth=70, eta=1, nthread = 2, nrounds=24, watchlist=watchlist, eval_metric = "error", eval_metric = "logloss", objective = "binary:logistic")
+
+
+
+pred_no_weights <- predict(bst_no_weights, test_data)
+
+make_csv <- as.data.frame(cbind(testing_data$id, pred_no_weights), stringsAsFactors = FALSE)
+colnames(make_csv) <- cbind("id", "project_is_approved")
+
+boxplot(as.numeric(make_csv$project_is_approved), ylim = c(0,1), main = "Probability of approval for each project")
+
+order_id <- make_csv[order(match(make_csv$id, test$id)), ]
+
+write.csv(order_id, "../data/sample_submission_no_weights.csv", row.names = FALSE, sep= ",")
+
+```
+
+# Results with unweighted
+
 
 # To do:
 
