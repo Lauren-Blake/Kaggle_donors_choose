@@ -324,7 +324,7 @@ shared across the workflowr files. -->
 <p><strong>Last updated:</strong> 2018-04-22</p>
 <!-- Insert the code version (Git commit SHA1) if Git repository exists and R
  package git2r is installed -->
-<p><strong>Code version:</strong> bcdad99</p>
+<p><strong>Code version:</strong> 9a58eb1</p>
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
 <p>The goal of this script is to run XGBoost on a model which includes information about the essays.</p>
@@ -361,33 +361,27 @@ Attaching package: &#39;xgboost&#39;</code></pre>
 
 train &lt;- read.csv(&quot;~/Dropbox/DonorsChoose/train.csv&quot;)
 test &lt;- read.csv(&quot;~/Dropbox/DonorsChoose/test.csv&quot;)
-resources &lt;- read.csv(&quot;~/Dropbox/DonorsChoose/resources.csv&quot;)</code></pre>
+resources &lt;- read.csv(&quot;~/Dropbox/DonorsChoose/resources.csv&quot;)
+
+combine_train_test &lt;- rbind(train[,1:15], test)</code></pre>
 </div>
 <div id="get-the-number-of-words-in-the-title" class="section level1">
 <h1>Get the number of words in the title</h1>
 <pre class="r"><code># First, we want to select project id, title name, and if the project was approved or not
 
-id_title &lt;- c(1, 16, 9)
+id_title &lt;- c(1, 9)
 
-train_text &lt;- train[,id_title]
+train_text &lt;- combine_train_test[,id_title]
 train_text[,1] &lt;- as.character(train_text[,1])
-train_text[,2] &lt;- as.numeric(train_text[,2])
-train_text[,3] &lt;- as.character(train_text[,3])
+train_text[,2] &lt;- as.character(train_text[,2])
 
 train_text &lt;- as.tibble(train_text)
 
 tidy_books &lt;- train_text %&gt;% unnest_tokens(word, project_title)
 
-# Take out stop (common) words
+freq_table &lt;- count(tidy_books, id) 
 
-tidy_books &lt;- tidy_books %&gt;%
-  anti_join(stop_words)</code></pre>
-<pre><code>Joining, by = &quot;word&quot;</code></pre>
-<pre class="r"><code>freq_table &lt;- count(tidy_books, id) 
-
-title_word_count_by_project &lt;- left_join(freq_table, train_text[,1:2], by = c(&quot;id&quot;))
-
-title_word_count_by_project &lt;- as.data.frame(title_word_count_by_project)</code></pre>
+title_word_count_by_project &lt;- as.data.frame(freq_table)</code></pre>
 </div>
 <div id="function-for-minimium-and-median" class="section level1">
 <h1>Function for minimium and median</h1>
@@ -405,21 +399,20 @@ check_corr_titles &lt;- cbind(check_min$id, check_min$min_score, check_med$med_s
 colnames(check_corr_titles) &lt;- c(&quot;id&quot;, &quot;min_score&quot;, &quot;med_score&quot;)
 
 check_corr_titles &lt;- as.data.frame(check_corr_titles)
+return(check_corr_titles)
 }
 
-min_med_title &lt;- get_min_med(tidy_books)</code></pre>
-<pre><code>Joining, by = &quot;word&quot;</code></pre>
+#min_med_title &lt;- get_min_med(tidy_books)</code></pre>
 </div>
 <div id="get-number-of-words-in-essay-1" class="section level1">
 <h1>Get number of words in essay 1</h1>
 <pre class="r"><code># First, we want to select project id, title name, and if the project was approved or not
 
-id_title &lt;- c(1, 16, 10)
+id_title &lt;- c(1, 10)
 
-train_text &lt;- train[,id_title]
+train_text &lt;- combine_train_test[,id_title]
 train_text[,1] &lt;- as.character(train_text[,1])
-train_text[,2] &lt;- as.numeric(train_text[,2])
-train_text[,3] &lt;- as.character(train_text[,3])
+train_text[,2] &lt;- as.character(train_text[,2])
 
 train_text &lt;- as.tibble(train_text)
 
@@ -429,32 +422,25 @@ tidy_books &lt;- train_text %&gt;% unnest_tokens(word, project_essay_1)
 
 freq_table &lt;- count(tidy_books, id) 
 
-essay1_word_count_by_project &lt;- left_join(freq_table, train_text[,1:2], by = c(&quot;id&quot;))
+essay1_word_count_by_project &lt;- as.data.frame(freq_table)
 
-# Take out stop (common) words
-
-tidy_books &lt;- tidy_books %&gt;%
-  anti_join(stop_words)</code></pre>
-<pre><code>Joining, by = &quot;word&quot;</code></pre>
-<pre class="r"><code>freq_table &lt;- count(tidy_books, id) 
-
-essay1_word_count_by_project &lt;- left_join(freq_table, train_text[,1:2], by = c(&quot;id&quot;))
-
-essay1_word_count_by_project &lt;- as.data.frame(essay1_word_count_by_project)
-
-min_med_essay1 &lt;- get_min_med(tidy_books)</code></pre>
+summary(title_word_count_by_project$id %in% essay1_word_count_by_project$id)</code></pre>
+<pre><code>   Mode   FALSE    TRUE 
+logical       1  260114 </code></pre>
+<pre class="r"><code>which((title_word_count_by_project$id %in% essay1_word_count_by_project$id) == FALSE)</code></pre>
+<pre><code>[1] 121566</code></pre>
+<pre class="r"><code>min_med_essay1 &lt;- get_min_med(tidy_books)</code></pre>
 <pre><code>Joining, by = &quot;word&quot;</code></pre>
 </div>
 <div id="get-number-of-words-in-essay-2" class="section level1">
 <h1>Get number of words in essay 2</h1>
 <pre class="r"><code># First, we want to select project id, title name, and if the project was approved or not
 
-id_title &lt;- c(1, 16, 11)
+id_title &lt;- c(1, 11)
 
-train_text &lt;- train[,id_title]
+train_text &lt;- combine_train_test[,id_title]
 train_text[,1] &lt;- as.character(train_text[,1])
-train_text[,2] &lt;- as.numeric(train_text[,2])
-train_text[,3] &lt;- as.character(train_text[,3])
+train_text[,2] &lt;- as.character(train_text[,2])
 
 train_text &lt;- as.tibble(train_text)
 
@@ -464,36 +450,169 @@ tidy_books &lt;- train_text %&gt;% unnest_tokens(word, project_essay_2)
 
 freq_table &lt;- count(tidy_books, id) 
 
-essay2_word_count_by_project &lt;- left_join(freq_table, train_text[,1:2], by = c(&quot;id&quot;))
-
-# Take out stop (common) words
-
-tidy_books &lt;- tidy_books %&gt;%
-  anti_join(stop_words)</code></pre>
-<pre><code>Joining, by = &quot;word&quot;</code></pre>
-<pre class="r"><code>freq_table &lt;- count(tidy_books, id) 
-
-essay2_word_count_by_project &lt;- left_join(freq_table, train_text[,1:2], by = c(&quot;id&quot;))
-
-essay2_word_count_by_project &lt;- as.data.frame(essay2_word_count_by_project)
+essay2_word_count_by_project &lt;- as.data.frame(freq_table)
 
 min_med_essay2 &lt;- get_min_med(tidy_books)</code></pre>
 <pre><code>Joining, by = &quot;word&quot;</code></pre>
 </div>
-<div id="combine-information" class="section level1">
-<h1>Combine information</h1>
-<pre class="r"><code>text_info &lt;- cbind(title_word_count_by_project$id, title_word_count_by_project$n, min_med_title$min_score, min_med_title$med_score, essay1_word_count_by_project$n, min_med_essay1$min_score, min_med_essay1$med_score, essay2_word_count_by_project$n, min_med_essay2$min_score, min_med_essay2$med_score)</code></pre>
-<pre><code>Warning in cbind(title_word_count_by_project$id,
-title_word_count_by_project$n, : number of rows of result is not a multiple
-of vector length (arg 1)</code></pre>
-<pre class="r"><code>head(text_info)</code></pre>
-<pre><code>     [,1]      [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10]
-[1,] &quot;p000002&quot; &quot;4&quot;  &quot;6&quot;  &quot;12&quot; &quot;54&quot; &quot;2&quot;  &quot;11&quot; &quot;76&quot; &quot;1&quot;  &quot;10&quot; 
-[2,] &quot;p000003&quot; &quot;4&quot;  &quot;2&quot;  &quot;4&quot;  &quot;32&quot; &quot;6&quot;  &quot;11&quot; &quot;63&quot; &quot;6&quot;  &quot;11&quot; 
-[3,] &quot;p000004&quot; &quot;1&quot;  &quot;5&quot;  &quot;10&quot; &quot;45&quot; &quot;5&quot;  &quot;10&quot; &quot;43&quot; &quot;1&quot;  &quot;9&quot;  
-[4,] &quot;p000006&quot; &quot;4&quot;  &quot;5&quot;  &quot;10&quot; &quot;32&quot; &quot;1&quot;  &quot;13&quot; &quot;43&quot; &quot;7&quot;  &quot;11&quot; 
-[5,] &quot;p000007&quot; &quot;3&quot;  &quot;5&quot;  &quot;10&quot; &quot;49&quot; &quot;1&quot;  &quot;11&quot; &quot;55&quot; &quot;6&quot;  &quot;10&quot; 
-[6,] &quot;p000008&quot; &quot;4&quot;  &quot;6&quot;  &quot;12&quot; &quot;36&quot; &quot;2&quot;  &quot;8&quot;  &quot;81&quot; &quot;3&quot;  &quot;9&quot;  </code></pre>
+<div id="combine-word-count-information" class="section level1">
+<h1>Combine word count information</h1>
+<pre class="r"><code>word_count &lt;- merge(title_word_count_by_project, essay1_word_count_by_project, by = c(&quot;id&quot;))
+colnames(word_count) &lt;- c(&quot;id&quot;, &quot;title_count&quot;, &quot;essay1_count&quot;)
+total_word_count &lt;- merge(word_count, essay2_word_count_by_project, by = c(&quot;id&quot;))
+colnames(total_word_count) &lt;- c(&quot;id&quot;, &quot;title_count&quot;, &quot;essay1_count&quot;, &quot;essay2_count&quot;)</code></pre>
+</div>
+<div id="run-rest-of-the-model" class="section level1">
+<h1>Run rest of the model</h1>
+<pre class="r"><code># Total price
+resources[,1] &lt;- as.character(resources[,1])
+resources_total_price &lt;- as.data.frame(cbind(resources$id, resources$quantity*resources$price), stringsAsFactors = FALSE)
+resources_total_price[,2] &lt;- as.numeric(resources_total_price[,2])
+
+resources_total_price2 &lt;- aggregate(resources_total_price[,2], by=list(Category=resources_total_price[,1]), FUN=sum)
+
+# Total quantity
+
+resources_quantity_total &lt;- aggregate(resources$quantity, by=list(Category=resources$id), FUN=sum)
+
+resources_together &lt;- as.data.frame(cbind(resources_total_price2, resources_quantity_total[,2]), stringsAsFactors = FALSE)
+
+colnames(resources_together) &lt;- c(&quot;id&quot;, &quot;total_amount&quot;, &quot;total_items&quot;)
+
+# Merge resources with training and test data
+
+training_data &lt;- merge(resources_together, train, by = c(&quot;id&quot;))
+
+testing_data &lt;- merge(resources_together, test, by = c(&quot;id&quot;))
+
+# Merge word count with training and test data
+
+training_data &lt;- merge(total_word_count, training_data, by = c(&quot;id&quot;))
+
+testing_data &lt;- merge(total_word_count, testing_data, by = c(&quot;id&quot;))
+
+
+## set the seed to make your partition reproductible
+set.seed(123)
+
+## 75% of the sample size
+smp_size &lt;- floor(0.75 * nrow(training_data))
+train_ind &lt;- sample(seq_len(nrow(training_data)), size = smp_size)
+
+train &lt;- training_data[train_ind, ]
+test2 &lt;- training_data[-train_ind, ]
+
+################################## Training data #############################
+
+#basic_features &lt;- c(2,3,5,6,8,9,17)
+basic_features &lt;- c(2,3,4,5,6,8,9,11,12,20)
+
+train_data &lt;- train[,basic_features]
+
+# XGBoost only works with numeric vectors
+
+train_data[,1] &lt;- as.numeric(train_data[,1])
+train_data[,2] &lt;- as.numeric(train_data[,2])
+train_data[,3] &lt;- as.numeric(train_data[,3])
+train_data[,4] &lt;- as.numeric(train_data[,4])
+train_data[,5] &lt;- as.numeric(train_data[,5])
+train_data[,6] &lt;- as.numeric(train_data[,6])
+train_data[,7] &lt;- as.numeric(train_data[,7])
+train_data[,8] &lt;- as.numeric(train_data[,8])
+train_data[,9] &lt;- as.numeric(train_data[,9])
+
+#train_data &lt;- as.list(train_data)
+train_data &lt;- as.matrix(train_data)
+train_labels &lt;- as.matrix(train[,21])
+
+################################## Test data #############################
+
+#basic_features &lt;- c(2,3,5,6,8,9,17)
+
+
+test2_data &lt;- test2[,basic_features]
+
+# XGBoost only works with numeric vectors
+
+test2_data[,1] &lt;- as.numeric(test2_data[,1])
+test2_data[,2] &lt;- as.numeric(test2_data[,2])
+test2_data[,3] &lt;- as.numeric(test2_data[,3])
+test2_data[,4] &lt;- as.numeric(test2_data[,4])
+test2_data[,5] &lt;- as.numeric(test2_data[,5])
+test2_data[,6] &lt;- as.numeric(test2_data[,6])
+test2_data[,7] &lt;- as.numeric(test2_data[,7])
+test2_data[,8] &lt;- as.numeric(test2_data[,8])
+test2_data[,9] &lt;- as.numeric(test2_data[,9])
+
+#train_data &lt;- as.list(train_data)
+test2_data &lt;- as.matrix(test2_data)
+test2_labels &lt;- as.matrix(test2[,21])
+
+############ Run dtrain and dtest, weight by the unequal number of positive and negative cases ##############
+
+dtrain &lt;- xgb.DMatrix(data = train_data[,1:7], label=train_labels)
+
+dtest &lt;- xgb.DMatrix(data = test2_data[,1:7], label=test2_labels)
+
+watchlist &lt;- list(train=dtrain, test=dtest)
+
+negative_cases &lt;- sum(train_labels == 0)
+positive_cases &lt;- sum(train_labels == 1)
+
+bst &lt;- xgb.train(data=dtrain, max_depth=70, eta=1, nthread = 2, nrounds=24, watchlist=watchlist, scale_pos_weight = negative_cases/positive_cases, eval_metric = &quot;error&quot;, eval_metric = &quot;logloss&quot;, objective = &quot;binary:logistic&quot;)</code></pre>
+<pre><code>[1] train-error:0.254527    train-logloss:0.543285  test-error:0.361863 test-logloss:0.643226 
+[2] train-error:0.190562    train-logloss:0.442501  test-error:0.335984 test-logloss:0.621703 
+[3] train-error:0.142825    train-logloss:0.368257  test-error:0.316169 test-logloss:0.608658 
+[4] train-error:0.108239    train-logloss:0.311898  test-error:0.298133 test-logloss:0.601481 
+[5] train-error:0.082404    train-logloss:0.267861  test-error:0.284820 test-logloss:0.596148 
+[6] train-error:0.065386    train-logloss:0.233191  test-error:0.276867 test-logloss:0.594831 
+[7] train-error:0.052131    train-logloss:0.204777  test-error:0.269200 test-logloss:0.593563 
+[8] train-error:0.041425    train-logloss:0.182698  test-error:0.262324 test-logloss:0.594392 
+[9] train-error:0.033678    train-logloss:0.164343  test-error:0.255734 test-logloss:0.595129 
+[10]    train-error:0.031312    train-logloss:0.157706  test-error:0.255250 test-logloss:0.596087 
+[11]    train-error:0.025791    train-logloss:0.142971  test-error:0.250110 test-logloss:0.597488 
+[12]    train-error:0.020533    train-logloss:0.130806  test-error:0.245540 test-logloss:0.599664 
+[13]    train-error:0.016850    train-logloss:0.120368  test-error:0.242750 test-logloss:0.601650 
+[14]    train-error:0.013855    train-logloss:0.110938  test-error:0.240114 test-logloss:0.604709 
+[15]    train-error:0.011270    train-logloss:0.103013  test-error:0.237236 test-logloss:0.607247 
+[16]    train-error:0.009351    train-logloss:0.095892  test-error:0.236204 test-logloss:0.610251 
+[17]    train-error:0.007367    train-logloss:0.089814  test-error:0.233634 test-logloss:0.612688 
+[18]    train-error:0.006085    train-logloss:0.084561  test-error:0.231591 test-logloss:0.615527 
+[19]    train-error:0.004796    train-logloss:0.079683  test-error:0.231612 test-logloss:0.618256 
+[20]    train-error:0.003903    train-logloss:0.075351  test-error:0.231239 test-logloss:0.620895 
+[21]    train-error:0.003442    train-logloss:0.071661  test-error:0.229921 test-logloss:0.623878 
+[22]    train-error:0.002885    train-logloss:0.068185  test-error:0.229504 test-logloss:0.626380 
+[23]    train-error:0.002138    train-logloss:0.064977  test-error:0.228647 test-logloss:0.629384 
+[24]    train-error:0.001911    train-logloss:0.062185  test-error:0.227109 test-logloss:0.632732 </code></pre>
+<pre class="r"><code>test_data &lt;- testing_data[,basic_features]
+
+test_data[,1] &lt;- as.numeric(test_data[,1])
+test_data[,2] &lt;- as.numeric(test_data[,2])
+test_data[,3] &lt;- as.numeric(test_data[,3])
+test_data[,4] &lt;- as.numeric(test_data[,4])
+test_data[,5] &lt;- as.numeric(test_data[,5])
+test_data[,6] &lt;- as.numeric(test_data[,6])
+test_data[,7] &lt;- as.numeric(test_data[,7])
+test_data[,8] &lt;- as.numeric(test_data[,8])
+test_data[,9] &lt;- as.numeric(test_data[,9])
+
+#train_data &lt;- as.list(train_data)
+test_data &lt;- as.matrix(test_data)
+
+pred &lt;- predict(bst, test_data)
+
+make_csv &lt;- as.data.frame(cbind(testing_data$id, pred), stringsAsFactors = FALSE)
+colnames(make_csv) &lt;- cbind(&quot;id&quot;, &quot;project_is_approved&quot;)
+
+boxplot(as.numeric(make_csv$project_is_approved), ylim = c(0,1), main = &quot;Probability of approval for each project&quot;)</code></pre>
+<p><img src="figure/Sentiment_plus_xgboost.Rmd/unnamed-chunk-7-1.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>order_id &lt;- make_csv[order(match(make_csv$id, test$id)), ]
+
+dim(order_id)</code></pre>
+<pre><code>[1] 78035     2</code></pre>
+<pre class="r"><code>write.csv(order_id, &quot;../data/sample_submission_word_count.csv&quot;, row.names = FALSE, sep= &quot;,&quot;)</code></pre>
+<pre><code>Warning in write.csv(order_id, &quot;../data/
+sample_submission_word_count.csv&quot;, : attempt to set &#39;sep&#39; ignored</code></pre>
 <div id="session-information" class="section level2">
 <h2>Session information</h2>
 <!-- Insert the session information into the document -->
