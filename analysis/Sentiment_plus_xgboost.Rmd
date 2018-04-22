@@ -45,6 +45,7 @@ train <- read.csv("~/Dropbox/DonorsChoose/train.csv")
 test <- read.csv("~/Dropbox/DonorsChoose/test.csv")
 resources <- read.csv("~/Dropbox/DonorsChoose/resources.csv")
 
+combine_train_test <- rbind(train[,1:15], test)
 ```
 
 # Get the number of words in the title
@@ -53,27 +54,19 @@ resources <- read.csv("~/Dropbox/DonorsChoose/resources.csv")
 ```{r}
 # First, we want to select project id, title name, and if the project was approved or not
 
-id_title <- c(1, 16, 9)
+id_title <- c(1, 9)
 
-train_text <- train[,id_title]
+train_text <- combine_train_test[,id_title]
 train_text[,1] <- as.character(train_text[,1])
-train_text[,2] <- as.numeric(train_text[,2])
-train_text[,3] <- as.character(train_text[,3])
+train_text[,2] <- as.character(train_text[,2])
 
 train_text <- as.tibble(train_text)
 
 tidy_books <- train_text %>% unnest_tokens(word, project_title)
 
-# Take out stop (common) words
-
-tidy_books <- tidy_books %>%
-  anti_join(stop_words)
-
 freq_table <- count(tidy_books, id) 
 
-title_word_count_by_project <- left_join(freq_table, train_text[,1:2], by = c("id"))
-
-title_word_count_by_project <- as.data.frame(title_word_count_by_project)
+title_word_count_by_project <- as.data.frame(freq_table)
 
 ```
 
@@ -95,9 +88,10 @@ check_corr_titles <- cbind(check_min$id, check_min$min_score, check_med$med_scor
 colnames(check_corr_titles) <- c("id", "min_score", "med_score")
 
 check_corr_titles <- as.data.frame(check_corr_titles)
+return(check_corr_titles)
 }
 
-min_med_title <- get_min_med(tidy_books)
+#min_med_title <- get_min_med(tidy_books)
 
 ```
 
@@ -107,12 +101,11 @@ min_med_title <- get_min_med(tidy_books)
 ```{r}
 # First, we want to select project id, title name, and if the project was approved or not
 
-id_title <- c(1, 16, 10)
+id_title <- c(1, 10)
 
-train_text <- train[,id_title]
+train_text <- combine_train_test[,id_title]
 train_text[,1] <- as.character(train_text[,1])
-train_text[,2] <- as.numeric(train_text[,2])
-train_text[,3] <- as.character(train_text[,3])
+train_text[,2] <- as.character(train_text[,2])
 
 train_text <- as.tibble(train_text)
 
@@ -122,18 +115,11 @@ tidy_books <- train_text %>% unnest_tokens(word, project_essay_1)
 
 freq_table <- count(tidy_books, id) 
 
-essay1_word_count_by_project <- left_join(freq_table, train_text[,1:2], by = c("id"))
+essay1_word_count_by_project <- as.data.frame(freq_table)
 
-# Take out stop (common) words
+summary(title_word_count_by_project$id %in% essay1_word_count_by_project$id)
+which((title_word_count_by_project$id %in% essay1_word_count_by_project$id) == FALSE)
 
-tidy_books <- tidy_books %>%
-  anti_join(stop_words)
-
-freq_table <- count(tidy_books, id) 
-
-essay1_word_count_by_project <- left_join(freq_table, train_text[,1:2], by = c("id"))
-
-essay1_word_count_by_project <- as.data.frame(essay1_word_count_by_project)
 
 min_med_essay1 <- get_min_med(tidy_books)
 ```
@@ -143,12 +129,11 @@ min_med_essay1 <- get_min_med(tidy_books)
 ```{r}
 # First, we want to select project id, title name, and if the project was approved or not
 
-id_title <- c(1, 16, 11)
+id_title <- c(1, 11)
 
-train_text <- train[,id_title]
+train_text <- combine_train_test[,id_title]
 train_text[,1] <- as.character(train_text[,1])
-train_text[,2] <- as.numeric(train_text[,2])
-train_text[,3] <- as.character(train_text[,3])
+train_text[,2] <- as.character(train_text[,2])
 
 train_text <- as.tibble(train_text)
 
@@ -158,30 +143,149 @@ tidy_books <- train_text %>% unnest_tokens(word, project_essay_2)
 
 freq_table <- count(tidy_books, id) 
 
-essay2_word_count_by_project <- left_join(freq_table, train_text[,1:2], by = c("id"))
-
-# Take out stop (common) words
-
-tidy_books <- tidy_books %>%
-  anti_join(stop_words)
-
-freq_table <- count(tidy_books, id) 
-
-essay2_word_count_by_project <- left_join(freq_table, train_text[,1:2], by = c("id"))
-
-essay2_word_count_by_project <- as.data.frame(essay2_word_count_by_project)
+essay2_word_count_by_project <- as.data.frame(freq_table)
 
 min_med_essay2 <- get_min_med(tidy_books)
 ```
 
-# Combine information
+# Combine word count information
 
 ```{r}
-text_info <- cbind(title_word_count_by_project$id, title_word_count_by_project$n, min_med_title$min_score, min_med_title$med_score, essay1_word_count_by_project$n, min_med_essay1$min_score, min_med_essay1$med_score, essay2_word_count_by_project$n, min_med_essay2$min_score, min_med_essay2$med_score)
-
-head(text_info)
+word_count <- merge(title_word_count_by_project, essay1_word_count_by_project, by = c("id"))
+colnames(word_count) <- c("id", "title_count", "essay1_count")
+total_word_count <- merge(word_count, essay2_word_count_by_project, by = c("id"))
+colnames(total_word_count) <- c("id", "title_count", "essay1_count", "essay2_count")
 ```
 
+# Run rest of the model
+
+```{r}
+# Total price
+resources[,1] <- as.character(resources[,1])
+resources_total_price <- as.data.frame(cbind(resources$id, resources$quantity*resources$price), stringsAsFactors = FALSE)
+resources_total_price[,2] <- as.numeric(resources_total_price[,2])
+
+resources_total_price2 <- aggregate(resources_total_price[,2], by=list(Category=resources_total_price[,1]), FUN=sum)
+
+# Total quantity
+
+resources_quantity_total <- aggregate(resources$quantity, by=list(Category=resources$id), FUN=sum)
+
+resources_together <- as.data.frame(cbind(resources_total_price2, resources_quantity_total[,2]), stringsAsFactors = FALSE)
+
+colnames(resources_together) <- c("id", "total_amount", "total_items")
+
+# Merge resources with training and test data
+
+training_data <- merge(resources_together, train, by = c("id"))
+
+testing_data <- merge(resources_together, test, by = c("id"))
+
+# Merge word count with training and test data
+
+training_data <- merge(total_word_count, training_data, by = c("id"))
+
+testing_data <- merge(total_word_count, testing_data, by = c("id"))
+
+
+## set the seed to make your partition reproductible
+set.seed(123)
+
+## 75% of the sample size
+smp_size <- floor(0.75 * nrow(training_data))
+train_ind <- sample(seq_len(nrow(training_data)), size = smp_size)
+
+train <- training_data[train_ind, ]
+test2 <- training_data[-train_ind, ]
+
+################################## Training data #############################
+
+#basic_features <- c(2,3,5,6,8,9,17)
+basic_features <- c(2,3,4,5,6,8,9,11,12,20)
+
+train_data <- train[,basic_features]
+
+# XGBoost only works with numeric vectors
+
+train_data[,1] <- as.numeric(train_data[,1])
+train_data[,2] <- as.numeric(train_data[,2])
+train_data[,3] <- as.numeric(train_data[,3])
+train_data[,4] <- as.numeric(train_data[,4])
+train_data[,5] <- as.numeric(train_data[,5])
+train_data[,6] <- as.numeric(train_data[,6])
+train_data[,7] <- as.numeric(train_data[,7])
+train_data[,8] <- as.numeric(train_data[,8])
+train_data[,9] <- as.numeric(train_data[,9])
+
+#train_data <- as.list(train_data)
+train_data <- as.matrix(train_data)
+train_labels <- as.matrix(train[,21])
+
+################################## Test data #############################
+
+#basic_features <- c(2,3,5,6,8,9,17)
+
+
+test2_data <- test2[,basic_features]
+
+# XGBoost only works with numeric vectors
+
+test2_data[,1] <- as.numeric(test2_data[,1])
+test2_data[,2] <- as.numeric(test2_data[,2])
+test2_data[,3] <- as.numeric(test2_data[,3])
+test2_data[,4] <- as.numeric(test2_data[,4])
+test2_data[,5] <- as.numeric(test2_data[,5])
+test2_data[,6] <- as.numeric(test2_data[,6])
+test2_data[,7] <- as.numeric(test2_data[,7])
+test2_data[,8] <- as.numeric(test2_data[,8])
+test2_data[,9] <- as.numeric(test2_data[,9])
+
+#train_data <- as.list(train_data)
+test2_data <- as.matrix(test2_data)
+test2_labels <- as.matrix(test2[,21])
+
+############ Run dtrain and dtest, weight by the unequal number of positive and negative cases ##############
+
+dtrain <- xgb.DMatrix(data = train_data[,1:7], label=train_labels)
+
+dtest <- xgb.DMatrix(data = test2_data[,1:7], label=test2_labels)
+
+watchlist <- list(train=dtrain, test=dtest)
+
+negative_cases <- sum(train_labels == 0)
+positive_cases <- sum(train_labels == 1)
+
+bst <- xgb.train(data=dtrain, max_depth=70, eta=1, nthread = 2, nrounds=24, watchlist=watchlist, scale_pos_weight = negative_cases/positive_cases, eval_metric = "error", eval_metric = "logloss", objective = "binary:logistic")
+
+test_data <- testing_data[,basic_features]
+
+test_data[,1] <- as.numeric(test_data[,1])
+test_data[,2] <- as.numeric(test_data[,2])
+test_data[,3] <- as.numeric(test_data[,3])
+test_data[,4] <- as.numeric(test_data[,4])
+test_data[,5] <- as.numeric(test_data[,5])
+test_data[,6] <- as.numeric(test_data[,6])
+test_data[,7] <- as.numeric(test_data[,7])
+test_data[,8] <- as.numeric(test_data[,8])
+test_data[,9] <- as.numeric(test_data[,9])
+
+#train_data <- as.list(train_data)
+test_data <- as.matrix(test_data)
+
+pred <- predict(bst, test_data)
+
+make_csv <- as.data.frame(cbind(testing_data$id, pred), stringsAsFactors = FALSE)
+colnames(make_csv) <- cbind("id", "project_is_approved")
+
+boxplot(as.numeric(make_csv$project_is_approved), ylim = c(0,1), main = "Probability of approval for each project")
+
+order_id <- make_csv[order(match(make_csv$id, test$id)), ]
+
+dim(order_id)
+
+write.csv(order_id, "../data/sample_submission_word_count.csv", row.names = FALSE, sep= ",")
+
+```
 
 
 ## Session information
